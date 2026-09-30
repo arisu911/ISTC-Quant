@@ -12,7 +12,7 @@
 ### The Competition Context
 * **Seed Capital:** RM 50.00 (Fixed tournament allocation).
 * **Execution Environment:** UP App Fractional Share Engine (increments of 0.01 units).
-* **The Strategic Problem:** In an ultra-low seed capital challenge, conventional retail trading behaviors—such as over-diversification, emotional chasing of penny stocks, and unhedged drawdowns—lead to immediate alpha decay. Splitting RM 50 across 5 different stocks introduces friction and dilutes percentage returns ($ROI\%$).
+* **The Strategic Problem:** In an ultra-low seed capital challenge, conventional retail trading behaviors—such as over-diversification, emotional chasing of penny stocks, and unhedged drawdowns—lead to immediate alpha decay. Splitting RM 50 across 5 different stocks introduces friction and dilutes percentage returns (ROI %).
 * **The Systematic Solution:** Bursa Strategy treats the competition as a high-conviction momentum sprint governed by strict risk management:
   1. **Algorithmic Signal Convergence:** Trades are triggered strictly when discrete mathematical factors align: Ichimoku Composite Score $\ge +3.0$, Institutional Accumulation Volume $Z$-Score $\ge 2.0$, and positive Mansfield Relative Strength ($\text{MRS}$).
   2. **Rubric Optimization:** Fulfills mandatory challenge quotas on Day 1 (2 fractional trades, 2 i-ETF trades using `0828EA`), ensuring full compliance with the 30% i-ETF and 20% Fractional scoring criteria.
@@ -118,8 +118,11 @@ Parses quarterly disclosures (`cat=FA`) with dynamic unit normalization (`RM'000
 * **Free Cash Flow:** $\text{FCF} = \text{Operating Cash Flow (CFO)} - \text{CAPEX}$
 * **Earnings Quality (Accrual Metric):** $\text{Ratio} = \frac{\text{CFO}}{\text{EBITDA}}$ (Values $> 0.80$ verify cash generation over accounting accruals).
 * **SAC Securities Commission Shariah Compliance Checks:**
-  $$\text{Cash Ratio} = \frac{\text{Conventional Cash \& Placements}}{\text{Total Assets}} < 33.0\% \quad [\text{PASS}]$$
-  $$\text{Debt Ratio} = \frac{\text{Interest-Bearing Conventional Debt}}{\text{Total Assets}} < 33.0\% \quad [\text{PASS}]$$
+
+$$\text{Cash Ratio} = \frac{\text{Conventional Cash and Placements}}{\text{Total Assets}} < 33.0\% \quad [\text{PASS}]$$
+
+$$\text{Debt Ratio} = \frac{\text{Interest-Bearing Conventional Debt}}{\text{Total Assets}} < 33.0\% \quad [\text{PASS}]$$
+
 * **Sector-Adaptive MD&A Narrative:** Dynamically adapts operational extraction:
   * Consumer/Retail: Same-Store Sales Growth (SSSG), store count expansion.
   * Conglomerate/Construction: Unbilled order book, contracted backlog.
@@ -134,7 +137,7 @@ When `0828EA` is active, Zone 3 swaps corporate cards for live cross-asset macro
 * **USD / MYR FX Rate (`MYR=X`):** Currency translation impact on Bursa quotation.
 * **Theoretical NAV & Pricing Spread (Arbitrage Gauge):**
   $$\text{NAV}_{\text{per gram}} = \frac{P_{\text{Gold (USD)}} \times \text{USDMYR}}{31.1034768}$$
-  $$\text{Spread \%} = \left( \frac{P_{\text{0828EA}}}{\text{Indicative Fund NAV}} - 1.0 \right) \times 100$$
+  $$\text{Pricing Spread } (\%) = \left( \frac{P_{\text{0828EA}}}{\text{Indicative Fund NAV}} - 1.0 \right) \times 100$$
 * **Shariah Vault Certification:** Audits physical 1kg gold bar allocation (LBMA 99.5% minimum purity) in Singapore custody under AAOIFI Standard No. 57.
 
 ---
