@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bursa Strategy | Display 1: Tower Portrait (1440x2560)</title>
+    <!-- Microsoft Edge & Brave Browser Security & CSP Headers -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/tower.css">
+</head>
+<body>
+    <!-- Top Navigation & Global Sync Bar -->
+    <header class="terminal-nav">
+        <div class="terminal-brand">
+            <span class="brand-dot"></span>
+            <span class="brand-logo">BURSA STRATEGY <span style="font-size:10px;color:var(--text-secondary);font-weight:400;">// DISPLAY 1: TOWER MONITOR</span></span>
+        </div>
+        <div class="nav-links">
+            <div class="sync-status">
+                <span class="sync-beacon" id="tower-sync-beacon"></span>
+                <span id="tower-sync-text">LIVE SYNC ACTIVE</span>
+            </div>
+            <a href="/desk" target="_blank" class="nav-btn">
+                <span>OPEN DESK (1920x1080)</span>
+                <span style="color:var(--neon-teal)">↗</span>
+            </a>
+            <button onclick="window.towerClient.loadFactorMatrix()" class="nav-btn" title="Refresh Factor Screener">
+                <span>RESCAN</span> ⟳
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Portrait Grid Container (1440 x 2560 optimized) -->
+    <main class="tower-container">
+        
+        <!-- ZONE 1: Universe Factor Matrix (Top 32%) -->
+        <section class="panel zone-matrix">
+            <div class="panel-header">
+                <span class="panel-title">Zone 1: Shariah Universe Factor Screener & Momentum Matrix</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                    <span class="badge badge-teal">22 Equities + 0828EA GOLDETF</span>
+                    <span style="font-size:10px;color:var(--text-dim)">Click row to sync Display 2</span>
+                </div>
+            </div>
+            <div class="matrix-table-wrapper">
+                <table class="matrix-table">
+                    <thead>
+                        <tr>
+                            <th data-col="code">Code</th>
+                            <th data-col="name">Counter</th>
+                            <th data-col="sector">Sector</th>
+                            <th data-col="last_price">Price (RM)</th>
+                            <th data-col="daily_change_pct">Chg%</th>
+                            <th data-col="ichimoku_score">Ichimoku (-5 to +5)</th>
+                            <th data-col="volume_z_score">Vol Z-Score</th>
+                            <th data-col="mrs">Mansfield RS%</th>
+                            <th data-col="atr_pct">ATR% (Squeeze)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="matrix-table-body">
+                        <!-- Populated by tower_sync.js -->
+                        <tr><td colspan="9" style="text-align:center;padding:20px;color:var(--text-dim);">Loading Factor Matrix...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ZONE 2: Catalyst Horizon Countdown Cards (Mid 13%) -->
+        <section class="panel zone-catalysts">
+            <div class="panel-header">
+                <span class="panel-title">Zone 2: Catalyst Horizon & Tournament Trading Day Countdowns</span>
+                <span style="font-size:10px;color:var(--text-dim)">Trading days excluding Bursa holidays</span>
+            </div>
+            <div class="panel-body" style="padding:6px 10px;">
+                <div class="catalyst-grid" id="catalyst-grid-container">
+                    <!-- Populated by tower_sync.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ZONE 3: Native A4 PDF & Fundamental Auditor (Mid-Lower 40%) -->
+        <section class="panel zone-auditor">
+            <div class="panel-header">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span class="panel-title" id="auditor-panel-title">Zone 3: A4 PDF Quarterly Disclosure & Fundamental Auditor</span>
+                    <span class="badge badge-blue" id="auditor-ticker-badge">SUNWAY (5211.KL)</span>
+                </div>
+                <div class="auditor-header-meta">
+                    <span style="font-size:10px;color:var(--text-secondary)">SAC SC Compliance:</span>
+                    <span class="sac-badge-pass" id="auditor-shariah-verdict">STRICTLY COMPLIANT</span>
+                </div>
+            </div>
+            <div class="panel-body" style="padding:8px 10px;">
+                <div class="auditor-grid">
+                    <!-- Left: Deterministic Financial Ratios -->
+                    <div class="auditor-left" id="auditor-left-panel">
+                        <div class="auditor-stat-card">
+                            <div class="stat-label">
+                                <span>Free Cash Flow (FCF = CFO - CAPEX)</span>
+                                <span class="badge badge-teal">Cash Generation</span>
+                            </div>
+                            <div class="stat-value" id="auditor-fcf-val">--</div>
+                        </div>
+
+                        <div class="auditor-stat-card">
+                            <div class="stat-label">
+                                <span>Earnings Quality (CFO / EBITDA)</span>
+                                <span class="badge badge-blue">Accrual Check</span>
+                            </div>
+                            <div class="stat-value" id="auditor-cfo-ebitda-val">--</div>
+                        </div>
+
+                        <div class="auditor-stat-card">
+                            <div class="stat-label">
+                                <span>SAC SC Cash Ratio (&lt; 33%)</span>
+                                <span style="font-size:9px;color:var(--text-dim)">Cash / Assets</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                                <span class="sac-badge-pass" id="auditor-cash-ratio-badge">--</span>
+                                <span style="font-size:10px;color:var(--text-secondary)">Limit: 33.0%</span>
+                            </div>
+                        </div>
+
+                        <div class="auditor-stat-card">
+                            <div class="stat-label">
+                                <span>SAC SC Conventional Debt Ratio (&lt; 33%)</span>
+                                <span style="font-size:9px;color:var(--text-dim)">Interest Debt / Assets</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+                                <span class="sac-badge-pass" id="auditor-debt-ratio-badge">--</span>
+                                <span style="font-size:10px;color:var(--text-secondary)">Limit: 33.0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Qualitative LLM Audit 5-Point Review -->
+                    <div class="auditor-right" id="auditor-mda-points">
+                        <div class="mda-point">
+                            <div class="mda-point-title">1. Real Commercial Drivers of Revenue Changes</div>
+                            <div class="mda-point-body">Loading MD&A operational audit extraction...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ZONE 4: Real-Time Telemetry Logs & Stop Alerts (Bottom 15%) -->
+        <section class="panel zone-telemetry">
+            <div class="panel-header">
+                <span class="panel-title">Zone 4: Institutional Telemetry Stream & Kijun-sen Trailing Stop Alerts</span>
+                <span style="font-size:10px;color:var(--text-dim)">WebSocket /ws/channel</span>
+            </div>
+            <div class="panel-body" style="padding:6px 10px;">
+                <div class="telemetry-split">
+                    <!-- Left: Streaming Logs -->
+                    <div class="log-stream" id="telemetry-log-stream">
+                        <div class="log-item">
+                            <span class="log-time">[BOOT]</span>
+                            <span class="log-tag">[INIT]</span>
+                            <span class="log-msg">Tower Portrait Display connected to Bursa Strategy terminal engine.</span>
+                        </div>
+                    </div>
+                    <!-- Right: Trailing Stop Alerts Box -->
+                    <div class="stop-alerts-box" id="stop-alerts-box">
+                        <div class="alert-item-ok">
+                            ✓ All open positions holding comfortably above Daily Kijun-sen trailing stop.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Client Scripts -->
+    <script src="/static/js/tower_sync.js"></script>
+</body>
+</html>

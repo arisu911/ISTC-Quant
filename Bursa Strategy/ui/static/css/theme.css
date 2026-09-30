@@ -1,0 +1,285 @@
+/* ==========================================================================
+   Bursa Strategy - Institutional Terminal Design System & Theme
+   Palette: Dark Void (#0a0e14), Matrix Teal (#00ffcc), Ruby (#ff0055), Gold (#ffd700)
+   Verified for Microsoft Edge and Brave Browser (Shields safe)
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg-primary: #080c10;
+  --bg-secondary: #0d1218;
+  --bg-card: #121922;
+  --bg-card-hover: #192330;
+  --bg-glass: rgba(18, 25, 34, 0.85);
+
+  --border-dim: #1c2736;
+  --border-bright: #2c3e55;
+  --border-glow: rgba(0, 255, 204, 0.3);
+
+  --neon-teal: #00ffcc;
+  --neon-teal-dim: rgba(0, 255, 204, 0.15);
+  --neon-pink: #ff0055;
+  --neon-pink-dim: rgba(255, 0, 85, 0.15);
+  --neon-purple: #b54aff;
+  --gold: #ffd700;
+  --gold-dim: rgba(255, 215, 0, 0.15);
+  --cyber-blue: #00b4d8;
+  --cyber-blue-dim: rgba(0, 180, 216, 0.15);
+
+  --text-primary: #f0f6fc;
+  --text-secondary: #8b9bb4;
+  --text-dim: #53647b;
+  --text-highlight: #ffffff;
+
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --header-height: 48px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Subtle institutional grid backdrop */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    linear-gradient(rgba(28, 39, 54, 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(28, 39, 54, 0.25) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neon-teal);
+}
+
+/* Terminal Badges & Tags */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.badge-teal {
+  background: var(--neon-teal-dim);
+  color: var(--neon-teal);
+  border: 1px solid rgba(0, 255, 204, 0.3);
+}
+
+.badge-pink {
+  background: var(--neon-pink-dim);
+  color: var(--neon-pink);
+  border: 1px solid rgba(255, 0, 85, 0.3);
+}
+
+.badge-gold {
+  background: var(--gold-dim);
+  color: var(--gold);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.badge-blue {
+  background: var(--cyber-blue-dim);
+  color: var(--cyber-blue);
+  border: 1px solid rgba(0, 180, 216, 0.3);
+}
+
+.badge-gray {
+  background: rgba(139, 155, 180, 0.1);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-dim);
+}
+
+/* Value colors */
+.val-up {
+  color: var(--neon-teal);
+}
+.val-down {
+  color: var(--neon-pink);
+}
+.val-gold {
+  color: var(--gold);
+}
+.val-blue {
+  color: var(--cyber-blue);
+}
+.val-dim {
+  color: var(--text-dim);
+}
+
+/* Shared Top Status Bar */
+.terminal-nav {
+  position: relative;
+  z-index: 10;
+  height: var(--header-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+}
+
+.terminal-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  color: var(--neon-teal);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--neon-teal);
+  box-shadow: 0 0 8px var(--neon-teal);
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-dim);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-btn:hover, .nav-btn.active {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--neon-teal);
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--neon-teal);
+}
+
+.sync-beacon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neon-teal);
+}
+
+/* Card / Panel styling */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: border-color var(--transition-fast);
+}
+
+.panel:hover {
+  border-color: var(--border-bright);
+}
+
+.panel-header {
+  padding: 8px 12px;
+  background: rgba(13, 18, 24, 0.8);
+  border-bottom: 1px solid var(--border-dim);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 10px;
+  background: var(--neon-teal);
+}
+
+.panel-body {
+  padding: 10px;
+  flex: 1;
+  overflow: auto;
+}
