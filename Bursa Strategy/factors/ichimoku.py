@@ -39,24 +39,32 @@ def calculate_ichimoku(
       - 'kumo_bottom'
     """
     res = df.copy()
-    high = res["High"]
-    low = res["Low"]
-    close = res["Close"]
+    
+    # Assert Non-Zero Rolling Windows: enforce strictly positive prices
+    valid_low = res["Low"].replace(0, np.nan).ffill().bfill()
+    valid_high = res["High"].replace(0, np.nan).ffill().bfill()
+    valid_close = res["Close"].replace(0, np.nan).ffill().bfill()
+
+    # Fallback guard against any lingering non-positive prices
+    if (valid_low <= 0).any() or valid_low.isna().any():
+        valid_low = valid_low.mask(valid_low <= 0).fillna(1.0)
+    if (valid_high <= 0).any() or valid_high.isna().any():
+        valid_high = valid_high.mask(valid_high <= 0).fillna(1.0)
 
     # Tenkan-sen (Conversion Line): (9-period High + 9-period Low) / 2
-    high_9 = high.rolling(window=tenkan_period).max()
-    low_9 = low.rolling(window=tenkan_period).min()
+    high_9 = valid_high.rolling(window=tenkan_period, min_periods=tenkan_period).max()
+    low_9 = valid_low.rolling(window=tenkan_period, min_periods=tenkan_period).min()
     res["tenkan_sen"] = (high_9 + low_9) / 2.0
 
     # Kijun-sen (Base Line): (26-period High + 26-period Low) / 2
-    high_26 = high.rolling(window=kijun_period).max()
-    low_26 = low.rolling(window=kijun_period).min()
+    high_26 = valid_high.rolling(window=kijun_period, min_periods=kijun_period).max()
+    low_26 = valid_low.rolling(window=kijun_period, min_periods=kijun_period).min()
     res["kijun_sen"] = (high_26 + low_26) / 2.0
 
     # Raw Span A & B at bar t
     raw_span_a = (res["tenkan_sen"] + res["kijun_sen"]) / 2.0
-    high_52 = high.rolling(window=span_b_period).max()
-    low_52 = low.rolling(window=span_b_period).min()
+    high_52 = valid_high.rolling(window=span_b_period, min_periods=span_b_period).max()
+    low_52 = valid_low.rolling(window=span_b_period, min_periods=span_b_period).min()
     raw_span_b = (high_52 + low_52) / 2.0
 
     # In classic trading, the Cloud visible at bar t is Span A and Span B calculated 26 periods ago
@@ -72,7 +80,7 @@ def calculate_ichimoku(
     res["kumo_bottom"] = np.minimum(res["span_a_current"], res["span_b_current"])
 
     # Chikou Span: Current close compared against close 26 periods ago
-    res["chikou_ref_price"] = close.shift(displacement)
+    res["chikou_ref_price"] = valid_close.shift(displacement)
 
     return res
 
@@ -276,19 +284,19 @@ def build_ichimoku_chart_series(
         t_val = _format_time(idx)
         if idx in ichi_df.index:
             t_tenkan = ichi_df.loc[idx, "tenkan_sen"]
-            if pd.notna(t_tenkan):
+            if pd.notna(t_tenkan) and float(t_tenkan) > 0:
                 tenkan_series.append({"time": t_val, "value": round(float(t_tenkan), 3)})
             
             t_kijun = ichi_df.loc[idx, "kijun_sen"]
-            if pd.notna(t_kijun):
+            if pd.notna(t_kijun) and float(t_kijun) > 0:
                 kijun_series.append({"time": t_val, "value": round(float(t_kijun), 3)})
 
             # Historical Span A & Span B (shifted from 26 bars ago)
             sa = ichi_df.loc[idx, "span_a_current"]
-            if pd.notna(sa):
+            if pd.notna(sa) and float(sa) > 0:
                 span_a_series.append({"time": t_val, "value": round(float(sa), 3)})
             sb = ichi_df.loc[idx, "span_b_current"]
-            if pd.notna(sb):
+            if pd.notna(sb) and float(sb) > 0:
                 span_b_series.append({"time": t_val, "value": round(float(sb), 3)})
 
     # 2. Chikou Span: Close shifted backward 26 bars (plotted at bar i - 26 with Close of bar i)
@@ -296,7 +304,7 @@ def build_ichimoku_chart_series(
     for i in range(displacement, n_bars):
         past_idx = idx_list[i - displacement]
         curr_close = df.iloc[i]["Close"]
-        if pd.notna(curr_close):
+        if pd.notna(curr_close) and float(curr_close) > 0:
             chikou_series.append({
                 "time": _format_time(past_idx),
                 "value": round(float(curr_close), 3)
@@ -316,11 +324,11 @@ def build_ichimoku_chart_series(
         f_time_val = _format_time(f_ts)
         if j < len(span_slice_a):
             val_a = span_slice_a.iloc[j]
-            if pd.notna(val_a):
+            if pd.notna(val_a) and float(val_a) > 0:
                 span_a_series.append({"time": f_time_val, "value": round(float(val_a), 3)})
         if j < len(span_slice_b):
             val_b = span_slice_b.iloc[j]
-            if pd.notna(val_b):
+            if pd.notna(val_b) and float(val_b) > 0:
                 span_b_series.append({"time": f_time_val, "value": round(float(val_b), 3)})
 
     return {

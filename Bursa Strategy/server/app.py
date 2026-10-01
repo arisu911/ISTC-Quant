@@ -334,14 +334,17 @@ async def _get_chart_data(identifier: str, timeframe: Optional[str] = None, inte
     cmf_series = []
 
     for idx, row in df.iterrows():
-        t_val = int(idx.timestamp())
-
         o = float(row["Open"])
         h = float(row["High"])
         l = float(row["Low"])
         c = float(row["Close"])
         v = float(row["Volume"])
 
+        # Strictly skip any corrupt zero-price rows
+        if o <= 0 or h <= 0 or l <= 0 or c <= 0:
+            continue
+
+        t_val = int(idx.timestamp())
         candles.append({"time": t_val, "open": o, "high": h, "low": l, "close": c, "volume": v})
 
         # Check volume Z-score
@@ -359,7 +362,7 @@ async def _get_chart_data(identifier: str, timeframe: Optional[str] = None, inte
 
         if idx in flow_df.index:
             av = flow_df.loc[idx, "avwap_tournament"]
-            if pd.notna(av):
+            if pd.notna(av) and float(av) > 0:
                 avwap_series.append({"time": t_val, "value": round(float(av), 3)})
             
             cm = flow_df.loc[idx, "cmf_21"]
@@ -373,13 +376,20 @@ async def _get_chart_data(identifier: str, timeframe: Optional[str] = None, inte
 
     # Use live quote from LIVE_MARKET_STATE or MARKET_STATE if available
     st = LIVE_MARKET_STATE.get(sym) or MARKET_STATE.get(sym)
-    candle_close = candles[-1]["close"] if candles else 0.0
-    if st and st.get("price") and st["price"] > 1.0:
-        last_price = st["price"]
-    elif st and st.get("last_price") and st["last_price"] > 1.0:
-        last_price = st["last_price"]
+    if st and st.get("price", 0) > 0 and st.get("source") != "INIT":
+        live_p = round(float(st["price"]), 3)
+        if candles:
+            candles[-1]["close"] = live_p
+            candles[-1]["high"] = max(candles[-1]["high"], live_p)
+            if candles[-1]["low"] <= 0:
+                candles[-1]["low"] = min(candles[-1]["open"], live_p)
+        last_price = live_p
+    elif st and st.get("last_price", 0) > 0:
+        last_price = round(float(st["last_price"]), 3)
+    elif candles:
+        last_price = candles[-1]["close"]
     else:
-        last_price = candle_close
+        last_price = 0.0
 
     return {
         "ticker": sym,

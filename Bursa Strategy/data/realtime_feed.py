@@ -109,11 +109,17 @@ class BursaRealtimeFeed:
                     sym = f"{stock_code}.KL"
                     if sym in ALL_SYMBOLS:
                         price = float(item.get("last_done_price") or item.get("last_price") or 0.0)
+                        if price <= 0:
+                            continue
                         chg = float(item.get("change") or 0.0)
                         chg_pct = float(item.get("change_percentage") or 0.0)
                         vol = int(item.get("volume") or item.get("buy_volume", 0) + item.get("sell_volume", 0))
                         high = float(item.get("high") or price)
                         low = float(item.get("low") or price)
+                        if high <= 0:
+                            high = price
+                        if low <= 0:
+                            low = price
                         
                         results[sym] = {
                             "ticker_symbol": sym,
@@ -178,22 +184,27 @@ class BursaRealtimeFeed:
                     high = float(m_h.group(1).replace(",", "")) if m_h else price
                     low = float(m_l.group(1).replace(",", "")) if m_l else price
                     vol = int(m_v.group(1).replace(",", "")) if m_v else 0
+                    if high <= 0:
+                        high = price
+                    if low <= 0:
+                        low = price
 
-                    return {
-                        "ticker_symbol": symbol,
-                        "symbol": symbol,
-                        "code": code,
-                        "name": name,
-                        "price": round(price, 3),
-                        "last_price": round(price, 3),
-                        "change": round(chg, 3),
-                        "change_pct": round(chg_pct, 2),
-                        "volume": vol,
-                        "high": round(high, 3),
-                        "low": round(low, 3),
-                        "timestamp": now_str,
-                        "source": "KLSE_SCREENER"
-                    }
+                    if price > 0:
+                        return {
+                            "ticker_symbol": symbol,
+                            "symbol": symbol,
+                            "code": code,
+                            "name": name,
+                            "price": round(price, 3),
+                            "last_price": round(price, 3),
+                            "change": round(chg, 3),
+                            "change_pct": round(chg_pct, 2),
+                            "volume": vol,
+                            "high": round(high, 3),
+                            "low": round(low, 3),
+                            "timestamp": now_str,
+                            "source": "KLSE_SCREENER"
+                        }
         except Exception as e:
             logger.debug(f"Secondary quote lookup for {symbol} ({code}) fell back: {e}")
 
@@ -227,8 +238,9 @@ class BursaRealtimeFeed:
         primary_results = await self.fetch_primary_bursa_api()
         if primary_results and len(primary_results) >= len(ALL_SYMBOLS):
             for sym, quote in primary_results.items():
-                LIVE_MARKET_STATE[sym] = quote
-            return list(LIVE_MARKET_STATE.values())
+                if quote.get("price", 0) > 0:
+                    LIVE_MARKET_STATE[sym] = quote
+            return [q for q in LIVE_MARKET_STATE.values() if q.get("price", 0) > 0]
 
         # Fallback to Secondary Pipe concurrent fetching
         tasks = [self.fetch_ticker_quote_secondary(sym) for sym in ALL_SYMBOLS]
@@ -236,7 +248,7 @@ class BursaRealtimeFeed:
 
         ticks = []
         for r in results:
-            if isinstance(r, dict) and "symbol" in r:
+            if isinstance(r, dict) and "symbol" in r and r.get("price", 0) > 0:
                 sym = r["symbol"]
                 LIVE_MARKET_STATE[sym] = r
                 ticks.append(r)

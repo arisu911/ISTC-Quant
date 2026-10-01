@@ -135,5 +135,54 @@ class TestMultiTimeframeIchimoku(unittest.TestCase):
         import asyncio
         asyncio.run(self._async_test_api())
 
+    def test_06_zero_price_sanitization(self):
+        """Test _sanitize_ohlcv purges zero/negative prices and pre-market empty bars."""
+        corrupt_data = self.df_1h.copy()
+        # Inject zero/negative rows
+        corrupt_data.iloc[2, corrupt_data.columns.get_loc("Low")] = 0.0
+        corrupt_data.iloc[5, corrupt_data.columns.get_loc("Open")] = -1.0
+        
+        cleaned = data_loader._sanitize_ohlcv(corrupt_data)
+        self.assertTrue((cleaned["Open"] > 0).all())
+        self.assertTrue((cleaned["High"] > 0).all())
+        self.assertTrue((cleaned["Low"] > 0).all())
+        self.assertTrue((cleaned["Close"] > 0).all())
+        self.assertEqual(len(cleaned), len(corrupt_data) - 2)
+
+    def test_07_ichimoku_zero_guard(self):
+        """Test calculate_ichimoku and build_ichimoku_chart_series never yield halved/zero lines."""
+        corrupt_df = self.df_1h.copy()
+        # Even if a zero low sneaks in, forward-fill should prevent halving
+        corrupt_df.iloc[-1, corrupt_df.columns.get_loc("Low")] = 0.0
+        ichi = calculate_ichimoku(corrupt_df)
+        self.assertGreater(float(ichi["tenkan_sen"].iloc[-1]), 3.0)
+        self.assertGreater(float(ichi["kijun_sen"].iloc[-1]), 3.0)
+
+        series = build_ichimoku_chart_series(corrupt_df, ichi, interval="1h")
+        for key in ["tenkan", "kijun", "span_a", "span_b", "chikou"]:
+            for pt in series[key]:
+                self.assertGreater(pt["value"], 0.0)
+
+    def test_08_gold_etf_chart_data_close_alignment(self):
+        """Test 0828EA.KL chart endpoint preserves nominal price (~5.20-5.30) without plunging."""
+        import asyncio
+        from data.realtime_feed import LIVE_MARKET_STATE
+        LIVE_MARKET_STATE["0828EA.KL"] = {
+            "symbol": "0828EA.KL",
+            "price": 5.280,
+            "high": 5.300,
+            "low": 5.250,
+            "volume": 60000,
+            "source": "BURSA_API"
+        }
+        res = asyncio.run(_get_chart_data("0828EA.KL", interval="1d"))
+        candles = res["candles"]
+        self.assertGreater(len(candles), 0)
+        # Ensure latest candle close matches live price and does not plummet
+        self.assertAlmostEqual(candles[-1]["close"], 5.280, places=2)
+        self.assertGreater(candles[-1]["low"], 4.5)
+        self.assertGreater(res["current_metrics"]["tenkan"], 4.5)
+        self.assertGreater(res["current_metrics"]["kijun"], 4.5)
+
 if __name__ == "__main__":
     unittest.main()

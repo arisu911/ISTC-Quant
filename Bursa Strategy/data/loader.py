@@ -77,6 +77,7 @@ class MarketDataLoader:
 
     def save_to_cache(self, symbol: str, df: pd.DataFrame, interval: str = "1d") -> None:
         """Write to SSD with Snappy-compressed Parquet (on shutdown or bar close)."""
+        df = self._sanitize_ohlcv(df)
         if df.empty:
             return
         p_path = self._get_cache_path(symbol, interval)
@@ -89,12 +90,64 @@ class MarketDataLoader:
             csv_path = self.cache_dir / f"{symbol.replace('.', '_')}_{interval}.csv"
             df.tail(max_w).to_csv(csv_path)
 
+    def _sanitize_ohlcv(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Strict OHLCV Sanitization:
+        1. Purge any row with zero, negative, or NaN prices in Open, High, Low, Close.
+        2. Drop incomplete / empty current-day pre-market bar if volume is 0 or trading has not commenced.
+        3. Enforce monotonic ascending index with deduplication.
+        """
+        if df is None or df.empty:
+            return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
+
+        df = df.copy()
+
+        # Coerce numeric columns
+        for col in ["Open", "High", "Low", "Close"]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+        if "Volume" in df.columns:
+            df["Volume"] = pd.to_numeric(df["Volume"], errors="coerce").fillna(0)
+
+        # 1. Purge any row with zero, negative, or NaN prices
+        df = df.dropna(subset=["Open", "High", "Low", "Close"])
+        df = df[(df["Open"] > 0) & (df["High"] > 0) & (df["Low"] > 0) & (df["Close"] > 0)]
+
+        if df.empty:
+            return df
+
+        # 2. Drop current incomplete bar if volume is 0 or trading has not commenced (market closed / pre-market)
+        try:
+            last_dt = df.index[-1]
+            last_date = last_dt.date() if hasattr(last_dt, "date") else pd.to_datetime(last_dt).date()
+            now_date = datetime.now().date()
+            if last_date == now_date:
+                last_vol = df["Volume"].iloc[-1]
+                last_close = df["Close"].iloc[-1]
+                if last_vol <= 0 or last_close <= 0:
+                    df = df.iloc[:-1]
+        except Exception as e:
+            logger.debug(f"Pre-market bar inspection skipped: {e}")
+
+        if df.empty:
+            return df
+
+        # 3. Enforce monotonic Unix timestamps and deduplicate
+        df = df[~df.index.duplicated(keep="last")]
+        df = df.sort_index()
+
+        return df
+
     def load_from_cache(self, symbol: str, interval: str = "1d") -> Optional[pd.DataFrame]:
-        """Load DataFrame from Snappy-compressed Parquet cache."""
+        """Load DataFrame from Snappy-compressed Parquet cache and apply sanitization."""
         p_path = self._get_cache_path(symbol, interval)
         if p_path.exists():
             try:
                 df = pd.read_parquet(p_path)
+                df = self._sanitize_ohlcv(df)
+                if df.empty:
+                    return None
                 max_w = 5500 if interval in ("1h", "4h") else MAX_BARS_WINDOW
                 return df.tail(max_w)
             except Exception as e:
@@ -164,6 +217,7 @@ class MarketDataLoader:
             df_1h = self.fetch_ohlcv(symbol, timeframe="1h", period="730d", force_refresh=force_refresh)
             if not df_1h.empty:
                 df_4h = build_4h_bars(df_1h)
+                df_4h = self._sanitize_ohlcv(df_4h)
                 if not df_4h.empty:
                     df_4h = df_4h.tail(2500)
                     self.save_to_cache(symbol, df_4h, "4h")
@@ -225,9 +279,12 @@ class MarketDataLoader:
                         df.index = df.index.tz_localize(None)
 
                 df["Volume"] = df["Volume"].fillna(0)
-                df = df.dropna(subset=["Close"])
+                # Strict OHLCV Sanitization: drop NaN, zero/negative prices, empty pre-market bars, enforce monotonic
+                df = self._sanitize_ohlcv(df)
+                if df.empty:
+                    return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"])
                 max_w = 5500 if interval in ("1h", "4h") else MAX_BARS_WINDOW
-                df = df.sort_index().tail(max_w)
+                df = df.tail(max_w)
 
                 self.save_to_cache(symbol, df, interval)
                 MARKET_CACHE[cache_key] = df
@@ -263,17 +320,34 @@ class MarketDataLoader:
         
         live = LIVE_MARKET_STATE.get(symbol)
         if live and live.get("price", 0) > 0 and live.get("source") != "INIT":
-            price = live["price"]
-            high = live.get("high", price)
-            low = live.get("low", price)
-            vol = live.get("volume", 0)
+            price = float(live["price"])
+            if price <= 0:
+                return df
+            high = float(live.get("high") or price)
+            low = float(live.get("low") or price)
+            if high <= 0:
+                high = price
+            if low <= 0:
+                low = price
+            vol = int(live.get("volume", 0) or 0)
 
-            # Evolve latest candle in-place
-            df.iloc[-1, df.columns.get_loc("Close")] = price
-            df.iloc[-1, df.columns.get_loc("High")] = max(df.iloc[-1]["High"], high, price)
-            df.iloc[-1, df.columns.get_loc("Low")] = min(df.iloc[-1]["Low"], low, price)
-            if vol > 0:
-                df.iloc[-1, df.columns.get_loc("Volume")] = vol
+            # Ensure current candle prices are positive
+            curr_low = float(df.iloc[-1]["Low"])
+            if curr_low <= 0:
+                curr_low = price
+            curr_high = float(df.iloc[-1]["High"])
+            if curr_high <= 0:
+                curr_high = price
+
+            new_high = max(curr_high, high, price)
+            new_low = min(curr_low, low, price)
+
+            if new_low > 0 and new_high > 0:
+                df.iloc[-1, df.columns.get_loc("Close")] = price
+                df.iloc[-1, df.columns.get_loc("High")] = new_high
+                df.iloc[-1, df.columns.get_loc("Low")] = new_low
+                if vol > 0:
+                    df.iloc[-1, df.columns.get_loc("Volume")] = vol
 
         return df
 
@@ -289,6 +363,8 @@ class MarketDataLoader:
         chg_pct = round(((last_p - prev_p) / prev_p) * 100, 2) if prev_p > 0 else 0.0
 
         meta = get_ticker_meta(symbol)
+        bar_high = float(last_bar["High"]) if float(last_bar["High"]) > 0 else last_p
+        bar_low = float(last_bar["Low"]) if float(last_bar["Low"]) > 0 else last_p
         
         # Preserve live price if already present in LIVE_MARKET_STATE
         live = LIVE_MARKET_STATE.get(symbol)
@@ -298,8 +374,8 @@ class MarketDataLoader:
         elif live:
             live["price"] = round(last_p, 3)
             live["last_price"] = round(last_p, 3)
-            live["high"] = round(float(last_bar["High"]), 3)
-            live["low"] = round(float(last_bar["Low"]), 3)
+            live["high"] = round(bar_high, 3)
+            live["low"] = round(bar_low, 3)
             live["change_pct"] = chg_pct
 
         MARKET_STATE[symbol] = {
@@ -313,8 +389,8 @@ class MarketDataLoader:
             "last_price": round(last_p, 3),
             "previous_close": round(prev_p, 3),
             "daily_change_pct": chg_pct,
-            "day_high": round(float(last_bar["High"]), 3),
-            "day_low": round(float(last_bar["Low"]), 3),
+            "day_high": round(bar_high, 3),
+            "day_low": round(bar_low, 3),
             "volume": int(last_bar["Volume"]),
             "updated_at": datetime.now().strftime("%H:%M:%S"),
             "ohlcv_df": df.tail(MAX_BARS_WINDOW)
@@ -329,12 +405,18 @@ class MarketDataLoader:
             if sym not in ALL_SYMBOLS:
                 continue
             meta = get_ticker_meta(sym)
-            price = live.get("price", 1.0)
-            chg = live.get("change", 0.0)
-            chg_pct = live.get("change_pct", 0.0)
-            vol = live.get("volume", 0)
-            high = live.get("high", price)
-            low = live.get("low", price)
+            price = float(live.get("price", 0.0) or 0.0)
+            if price <= 0:
+                continue
+            chg = float(live.get("change", 0.0) or 0.0)
+            chg_pct = float(live.get("change_pct", 0.0) or 0.0)
+            vol = int(live.get("volume", 0) or 0)
+            high = float(live.get("high") or price)
+            low = float(live.get("low") or price)
+            if high <= 0:
+                high = price
+            if low <= 0:
+                low = price
             timestamp = live.get("timestamp", datetime.now().strftime("%H:%M:%S"))
 
             if sym in MARKET_STATE:
@@ -350,11 +432,22 @@ class MarketDataLoader:
                 # Mutate active evolving candle
                 df = entry.get("ohlcv_df")
                 if df is not None and not df.empty:
-                    df.iloc[-1, df.columns.get_loc("Close")] = price
-                    df.iloc[-1, df.columns.get_loc("High")] = max(df.iloc[-1]["High"], high, price)
-                    df.iloc[-1, df.columns.get_loc("Low")] = min(df.iloc[-1]["Low"], low, price)
-                    if vol > 0:
-                        df.iloc[-1, df.columns.get_loc("Volume")] = vol
+                    curr_low = float(df.iloc[-1]["Low"])
+                    if curr_low <= 0:
+                        curr_low = price
+                    curr_high = float(df.iloc[-1]["High"])
+                    if curr_high <= 0:
+                        curr_high = price
+
+                    new_high = max(curr_high, high, price)
+                    new_low = min(curr_low, low, price)
+
+                    if new_low > 0 and new_high > 0:
+                        df.iloc[-1, df.columns.get_loc("Close")] = price
+                        df.iloc[-1, df.columns.get_loc("High")] = new_high
+                        df.iloc[-1, df.columns.get_loc("Low")] = new_low
+                        if vol > 0:
+                            df.iloc[-1, df.columns.get_loc("Volume")] = vol
             else:
                 MARKET_STATE[sym] = {
                     "ticker_symbol": sym,
